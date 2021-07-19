@@ -1,0 +1,72 @@
+// Code your design here
+module CRC(input clock,input data,output reg[15:0] r=16'hffff);
+  wire x16=data;
+  reg[5:0] count=32;
+ 
+  always@(posedge clock)
+    begin
+     
+        if(count!=0)
+        begin
+          r[15]<=r[14]+r[15]+x16;
+          r[14:3]<=r[13:2];
+          r[2]<=r[1]+r[15]+x16;
+          r[1]<=r[0];
+          r[0]<=r[15]+x16;
+          count<=count-1;
+        end
+     
+    end
+endmodule
+
+
+
+
+/// TestBench
+
+// Code your testbench here
+// or browse Examples
+
+module t_CRC;
+ reg t_clock;
+ 
+ reg t_data;
+ 
+
+  wire [15:0] t_r;
+  
+ 
+ CRC t1(t_clock,t_data,t_r);
+  reg [31:0] input_data = 32'h03_01_02_03;
+ integer i;
+ initial 
+   begin 
+ forever #5 t_clock = !t_clock;
+   end
+
+
+ initial begin
+ 
+ t_clock = 0;
+
+ t_data = 0;
+   #5 t_data=input_data[31];
+    for (i=31; i>=0; i=i-1)
+     begin #10
+        input_data[31:1]=input_data[30:0];
+        t_data = input_data[31];
+     end 
+ end
+  initial
+    #15 $monitor("%b",t_r);
+  initial
+#360 $finish;
+  initial begin
+  $dumpfile("dump.vcd");
+  $dumpvars(1);
+end
+
+endmodule
+
+    
+    
