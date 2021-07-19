@@ -1,0 +1,85 @@
+                    *FEC
+module FEC(output [95:0]fec,output done,input data, input clock,start);
+  reg [95:0] fec;
+  reg done=0;
+  reg p0,p1;
+  reg [5:0] i;
+  reg [3:0] w;
+  always@(posedge clock,posedge start)
+    begin
+      if(start)
+        begin
+          fec=0;
+          i=0;
+          w=4'b0;
+        end
+      else if(i!=48) begin
+        w[3:1]=w[2:0];
+        w[0]=data;
+        fec[0]<=w[0]+w[1]+w[2]+w[3];
+        fec[1]<=w[0]+w[2]+w[3];
+        
+        i<=i+1;
+        fec[95:2]<=fec[93:0];
+       // fec[1]<=p1;
+        //fec[0]<=p0;
+      end
+      if(i==48)
+        begin
+          done<=1;
+        end
+     
+    end
+endmodule
+
+//TestBench
+
+// Code your testbench here
+
+module tb_parity_slider;
+reg clock,start;
+  reg [47:0] input_data=48'h03_01_02_03_30_3A;
+  reg data;
+  wire done;
+  wire [95:0] fec;
+  
+  integer i;
+  
+  initial begin
+    forever#5 clock=!clock;
+  end
+  
+  FEC T1(fec,done,data,clock,start);
+   initial begin
+     clock=0;
+     start=0;
+     
+     #15
+     start=1;
+     #10
+     start=0;
+     data=input_data[47];
+     for(i=1;i<=47;i=i+1)
+       begin #10
+         if(done!=1) begin
+         input_data=input_data<<1;
+         data=input_data[47];
+         end
+       end
+   end
+      
+ initial
+   #15 $monitor("%b",fec);
+  initial
+#600 $finish;
+  initial begin
+  $dumpfile("dump.vcd");
+  $dumpvars(1);
+end
+
+endmodule
+  
+
+         
+         
+  
