@@ -1,0 +1,146 @@
+// CRC
+module CRC(input clock,start,input data,output reg[95:0] fec,output done);
+  wire x16=data;
+  reg[5:0] count=32;
+  reg[15:0] r=16'hffff;
+  always@(posedge clock)
+    begin
+     
+        if(count!=0)
+        begin
+          r[15]<=r[14]+r[15]+x16;
+          r[14:3]<=r[13:2];
+          r[2]<=r[1]+r[15]+x16;
+          r[1]<=r[0];
+          r[0]<=r[15]+x16;
+          count<=count-1;
+          if(count!=0) dataf=data;
+      else begin 
+        dataf= r[15];
+        r=r<<1;
+      end
+        end
+     
+    end
+//endmodule
+
+
+
+//FEC
+
+//module FEC(output [95:0]fec,output done,input data, input clock,start);
+  
+  reg done=0;
+  reg p0,p1;
+  reg [5:0] i;
+  reg [3:0] w;
+  reg dataf;
+  
+  always@(posedge clock,posedge start)
+    begin
+      
+      if(start)
+        begin
+          fec=0;
+          i=0;
+          w=4'b0;
+        end
+      else if(i!=48) begin
+        w[3:1]=w[2:0];
+        w[0]=dataf;
+        fec[0]<=w[0]+w[1]+w[2]+w[3];
+        fec[1]<=w[0]+w[2]+w[3];
+        
+        i<=i+1;
+        fec[95:2]<=fec[93:0];
+       // fec[1]<=p1;
+        //fec[0]<=p0;
+      end
+      if(i==48)
+        begin
+          done<=1;
+        end
+     
+    end
+endmodule
+  
+
+//interleaver
+
+
+module interleavingModule(input [95:0] fec,output [95:0] int_fec,input done);
+  
+  fourByteInterleaver T1(fec[31:0],int_fec[31:0],done);
+  fourByteInterleaver T2(fec[63:32],int_fec[63:32],done);
+  fourByteInterleaver T3(fec[95:64],int_fec[95:64],done);
+  endmodule
+
+module fourByteInterleaver(input  [31:0] inFourBytes,output  [31:0] outFourBytes,input done);
+  
+  wire [7:0] byte0;
+  wire [7:0] byte1;
+  wire [7:0] byte2;
+  wire [7:0] byte3;
+  wire [7:0] out0;
+  wire [7:0] out1;
+  wire [7:0] out2;
+  wire [7:0] out3;
+  
+  assign byte0 = inFourBytes[7:0];
+  assign byte1 = inFourBytes[15:8];
+  assign byte2 = inFourBytes[23:16];
+  assign byte3 = inFourBytes[31:24];
+  assign out3 = {byte0[1:0],byte1[1:0],byte2[1:0],byte3[1:0]};
+  assign out2 = {byte0[3:2],byte1[3:2],byte2[3:2],byte3[3:2]};
+  assign out1 = {byte0[5:4],byte1[5:4],byte2[5:4],byte3[5:4]};
+  assign out0 = {byte0[7:6],byte1[7:6],byte2[7:6],byte3[7:6]};
+  assign outFourBytes = {out3,out2,out1,out0}; 
+ 
+endmodule
+
+
+//TestBench
+
+// Code your testbench here
+// or browse Examples
+module t_DCS;
+  reg clock,start,data;
+  wire [95:0] terminal;
+  wire [95:0] fec;
+  wire done;
+  reg [31:0] inputdata;
+  integer i;
+  
+  
+  CRC C1(clock,start,data,fec,done);
+  interleavingModule I1(fec,terminal,done);
+  
+  initial forever #5 clock=!clock;
+    initial begin 
+      clock=0;
+      start=0;
+    #5 start=1;
+      #10 start=0;
+      inputdata=32'h03_01_02_03;
+      data=inputdata[31];
+    end
+  
+  initial begin #15
+    
+    for(i=0;i<31;i=i+1)
+      begin #10
+        inputdata=inputdata<<1;
+        data=inputdata[31];
+    end
+      
+    
+    end
+                                                                                                                                                    initial #600 $finish;                                                          
+  initial $monitor("%h",terminal);
+  initial begin
+  $dumpfile("dump.vcd");
+  $dumpvars(1);
+end
+  
+endmodule
+  
